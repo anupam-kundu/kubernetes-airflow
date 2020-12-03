@@ -1,6 +1,10 @@
 # kubernetes-airflow
 airflow is managed as container service inside kubernetes.
-aws eks is used as kubernetes cluster 
+aws eks is used as kubernetes cluster
+installed s/w
+1. mysql
+2. rabbitMQ
+
 
 folders
 applications
