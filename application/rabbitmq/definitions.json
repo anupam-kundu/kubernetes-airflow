@@ -1,0 +1,59 @@
+{
+  "rabbit_version":"3.7.17",
+  "users": [
+    {
+      "name":"airflow",
+      "password_hash":"iEJQu2w3NkEqO447NLtcbQpdnS7Y38/I+U9yWTuy422tAVqc",
+      "hashing_algorithm":"rabbit_password_hashing_sha256",
+      "tags":"administrator"
+    }
+  ],
+  "vhosts": [
+    {
+      "name":"airflow-vh"
+    }
+  ],
+  "permissions":[
+    {
+      "user":"airflow",
+      "vhost":"airflow-vh",
+      "configure":".*",
+      "write":".*",
+      "read":".*"
+    }
+  ],
+  "parameters":[],
+  "policies":[
+    {"vhost":"airflow-vh","name":"ha","pattern":"", "definition":{"ha-mode":"all","ha-sync-mode":"automatic","ha-sync-batch-size":5}}
+  ],
+  "queues":[
+    {
+      "name":"q.airflow",
+      "vhost":"airflow-vh",
+      "durable":true,
+      "auto_delete":true,
+      "arguments":{}
+    }
+  ],
+  "exchanges":[
+    {
+      "name":"e.airflow",
+      "vhost":"airflow-vh",
+      "type":"topic",
+      "durable":true,
+      "auto_delete":false,
+      "internal":false,
+      "arguments":{}
+    }
+  ],
+  "bindings":[
+    {
+      "source":"e.airflow",
+      "vhost":"airflow-vh",
+      "destination":"q.airflow",
+      "destination_type":"queue",
+      "routing_key":"route.airflow",
+      "arguments":{}
+    }
+  ]
+}

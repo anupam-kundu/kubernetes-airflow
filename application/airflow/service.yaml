@@ -1,0 +1,50 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: airflow-webserver
+  labels:
+    app: airflow-webserver
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080
+  selector:
+    app: airflow-webserver
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: celery-flower
+  labels:
+    app: celery-flower
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5555
+      targetPort: 5555
+      nodePort: 30055
+  selector:
+    app: celery-flower
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: celery-worker
+  labels:
+    app: celery-worker
+spec:
+  clusterIP: None
+  ports:
+    - name: logserver
+      port: 8793
+      targetPort: 8793
+  selector:
+    app: celery-worker
+---

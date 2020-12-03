@@ -1,0 +1,4 @@
+# Apply this config only on slaves.
+[mysqld]
+super-read-only
+explicit_defaults_for_timestamp = 1

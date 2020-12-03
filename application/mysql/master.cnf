@@ -1,0 +1,4 @@
+# Apply this config only on the master.
+[mysqld]
+log-bin
+explicit_defaults_for_timestamp = 1

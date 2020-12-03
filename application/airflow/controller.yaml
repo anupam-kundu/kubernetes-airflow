@@ -1,0 +1,276 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+spec:
+  selector:
+    matchLabels:
+      app: airflow-webserver
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver
+    spec:
+      securityContext:
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: airflow-webserver
+          image: puckel/docker-airflow:1.10.4
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              export SLUGIFY_USES_TEXT_UNIDECODE=yes
+              if [ -e "/requirements.txt" ]; then
+                  $(command -v pip) install --user -r /requirements.txt
+              fi
+              airflow webserver
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/local/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: config-volume
+              mountPath: /requirements.txt
+              subPath: requirements.txt
+            - name: dags-dir
+              mountPath: /usr/local/airflow/dags
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 8080
+          env:
+            - name: FERNET_KEY
+              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+          livenessProbe:
+            exec:
+              command: ["test", "-f" , "/usr/local/airflow/airflow-webserver.pid"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 30
+          readinessProbe:
+            exec:
+              command: ["test", "-f" , "/usr/local/airflow/airflow-webserver.pid"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 30
+          imagePullPolicy: Always
+      volumes:
+        - name: config-volume
+          configMap:
+            name: airflow-config
+        - name: dags-dir
+          configMap:
+            name: airflow-dags
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+spec:
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      securityContext:
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: airflow-scheduler
+          image: puckel/docker-airflow:1.10.4
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              export SLUGIFY_USES_TEXT_UNIDECODE=yes
+              if [ -e "/requirements.txt" ]; then
+                  $(command -v pip) install --user -r /requirements.txt
+              fi
+              airflow scheduler
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/local/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: config-volume
+              mountPath: /requirements.txt
+              subPath: requirements.txt
+            - name: dags-dir
+              mountPath: /usr/local/airflow/dags
+          env:
+            - name: FERNET_KEY
+              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+          imagePullPolicy: Always
+      volumes:
+        - name: config-volume
+          configMap:
+            name: airflow-config
+        - name: dags-dir
+          configMap:
+            name: airflow-dags
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-flower
+spec:
+  selector:
+    matchLabels:
+      app: celery-flower
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: celery-flower
+    spec:
+      securityContext:
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: celery-flower
+          image: puckel/docker-airflow:1.10.4
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              export SLUGIFY_USES_TEXT_UNIDECODE=yes
+              if [ -e "/requirements.txt" ]; then
+                  $(command -v pip) install --user -r /requirements.txt
+              fi
+              airflow flower
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/local/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: config-volume
+              mountPath: /requirements.txt
+              subPath: requirements.txt
+            - name: dags-dir
+              mountPath: /usr/local/airflow/dags
+          ports:
+            - name: http
+              protocol: TCP
+              containerPort: 5555
+          env:
+            - name: FERNET_KEY
+              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+          imagePullPolicy: Always
+      volumes:
+        - name: config-volume
+          configMap:
+            name: airflow-config
+        - name: dags-dir
+          configMap:
+            name: airflow-dags
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: celery-worker
+spec:
+  selector:
+    matchLabels:
+      app: celery-worker
+  serviceName: celery-worker
+  replicas: 10
+  template:
+    metadata:
+      labels:
+        app: celery-worker
+    spec:
+      securityContext:
+        fsGroup: 2000
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: init-worker-artifacts
+          image: xueshanf/awscli:latest
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              aws s3 cp s3://shn-k8s-state-store/airflow/artifacts/ /usr/local/airflow/artifacts/ --recursive
+              chmod -R 777 /usr/local/airflow/artifacts
+              chmod 666 /var/run/docker.sock
+          volumeMounts:
+            - name: artifacts
+              mountPath: /usr/local/airflow/artifacts
+            - name: docker-daemon
+              mountPath: /var/run/docker.sock
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "AKIAJBUN3SOTFQ4YZZ7A"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "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"
+            - name: AWS_DEFAULT_REGION
+              value: "us-west-2"
+      containers:
+        - name: celery-worker
+          image: puckel/docker-airflow:1.10.4
+          command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              export SLUGIFY_USES_TEXT_UNIDECODE=yes
+              if [ -e "/requirements.txt" ]; then
+                  $(command -v pip) install --user -r /requirements.txt
+              fi
+              airflow worker
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/local/airflow/airflow.cfg
+              subPath: airflow.cfg
+            - name: config-volume
+              mountPath: /requirements.txt
+              subPath: requirements.txt
+            - name: dags-dir
+              mountPath: /usr/local/airflow/dags
+            - name: logs
+              mountPath: /usr/local/airflow/logs
+            - name: artifacts
+              mountPath: /usr/local/airflow/artifacts
+            - name: docker-daemon
+              mountPath: /var/run/docker.sock
+          ports:
+            - name: logserver
+              protocol: TCP
+              containerPort: 8793
+          env:
+            - name: FERNET_KEY
+              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+          imagePullPolicy: Always
+      volumes:
+        - name: config-volume
+          configMap:
+            name: airflow-config
+        - name: dags-dir
+          configMap:
+            name: airflow-dags
+        - name: artifacts
+          hostPath:
+            path: /usr/local/airflow/artifacts
+            type: DirectoryOrCreate
+        - name: docker-daemon
+          hostPath:
+            path: /var/run/docker.sock
+            type: File
+  volumeClaimTemplates:
+    - metadata:
+        name: logs
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+---

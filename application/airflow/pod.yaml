@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: busybox
+      image: puckel/docker-airflow:1.10.4
+      env:
+        - name: FERNET_KEY
+          value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+      command:
+        - /bin/sh
+        - -c
+        - "while true; do date; sleep 5; done"
+      volumeMounts:
+        - name: config-volume
+          mountPath: /usr/local/airflow/airflow.cfg
+          subPath: airflow.cfg
+  volumes:
+    - name: config-volume
+      configMap:
+        name: airflow-config
