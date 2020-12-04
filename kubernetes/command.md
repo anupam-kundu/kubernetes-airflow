@@ -1,6 +1,6 @@
 https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html
 
-aws eks update-kubeconfig --name shn-prometheus-aws-qat-eks-cluster --role-arn arn:aws:iam::400976400997:role/shn-prometheus-cfn-deployer-role
+aws eks update-kubeconfig --name shn-prometheus-aws-qat-eks-cluster --role-arn arn:aws:iam::aws_account_id:role/shn-prometheus-cfn-deployer-role
 
 kubectl apply -f aws-auth-cm.yaml
 
@@ -60,11 +60,11 @@ kubectl apply -f controller.yml -n prometheus
 kubectl apply -f nodeport-service.yml -n prometheus
 
 #Update Docker deployment in kubernetes pods
-kubectl set image deployment/crate-adapter-deployment crate-adapter=400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:crate-adapter -n crate-adapter
+kubectl set image deployment/crate-adapter-deployment crate-adapter=aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:crate-adapter -n crate-adapter
 
 kubectl get pods -l app=prometheus -w -n prometheus
 ##### update containers image in statefulset
-kubectl patch statefulset server --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:prometheus-server-v1"}]' -n prometheus
+kubectl patch statefulset server --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:prometheus-server-v1"}]' -n prometheus
 
 
 ##### staging an update --- by default partition = 0 
@@ -87,11 +87,11 @@ cp /Users/akundu/skyhighProjects/vm/shn-prometheus/applications/dlp/Dockerfile .
 
 $(aws ecr get-login --no-include-email --region us-west-2)
 docker build -t dlpapi-server .
-docker tag dlpapi-server:latest 400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:dlp
-docker push 400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:dlp
+docker tag dlpapi-server:latest aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:dlp
+docker push aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:dlp
 
-docker tag eureka-registry:latest 400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:eureka-registry
-docker push 400976400997.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:eureka-registry
+docker tag eureka-registry:latest aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:eureka-registry
+docker push aws_account_id.dkr.ecr.us-west-2.amazonaws.com/shn/prometheus:eureka-registry
 
 kubectl create namespace dlp
 kubectl apply -f internal-service.yml -n dlp
