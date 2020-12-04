@@ -44,7 +44,7 @@ spec:
               containerPort: 8080
           env:
             - name: FERNET_KEY
-              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+              value: "hash_key"
           livenessProbe:
             exec:
               command: ["test", "-f" , "/usr/local/airflow/airflow-webserver.pid"]
@@ -107,7 +107,7 @@ spec:
               mountPath: /usr/local/airflow/dags
           env:
             - name: FERNET_KEY
-              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+              value: "hash_key"
           imagePullPolicy: Always
       volumes:
         - name: config-volume
@@ -162,7 +162,7 @@ spec:
               containerPort: 5555
           env:
             - name: FERNET_KEY
-              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+              value: "hash_key"
           imagePullPolicy: Always
       volumes:
         - name: config-volume
@@ -208,9 +208,9 @@ spec:
               mountPath: /var/run/docker.sock
           env:
             - name: AWS_ACCESS_KEY_ID
-              value: "AKIAJBUN3SOTFQ4YZZ7A"
+              value: "aws_access_key"
             - name: AWS_SECRET_ACCESS_KEY
-              value: "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"
+              value: "aws_access_secret"
             - name: AWS_DEFAULT_REGION
               value: "us-west-2"
       containers:
@@ -247,7 +247,7 @@ spec:
               containerPort: 8793
           env:
             - name: FERNET_KEY
-              value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+              value: "hash_key"
           imagePullPolicy: Always
       volumes:
         - name: config-volume

@@ -8,7 +8,7 @@ spec:
       image: puckel/docker-airflow:1.10.4
       env:
         - name: FERNET_KEY
-          value: "7KCpS7HZ5Xf0gBZphfWW4tPdcldq6YwD3l9GUnOm6BM="
+          value: "hash_key"
       command:
         - /bin/sh
         - -c
