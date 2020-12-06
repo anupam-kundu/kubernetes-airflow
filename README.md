@@ -19,6 +19,6 @@ cfn/deployment-code-pipeline.yaml
 kubernetes help commands
 kubernetes/command.md
 
-deploy code pipeline and setup infrastructure using below command
-sh cfn/setup-code-pipeline.sh
+deploy code pipeline and setup infrastructure using below command:
+    sh cfn/setup-code-pipeline.sh
 
