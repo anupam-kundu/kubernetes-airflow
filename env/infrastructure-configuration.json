@@ -1,0 +1,13 @@
+{
+  "Parameters" : {
+    "VpcId" : "vpc_id",
+    "Subnets" : "comma_sep_subnet_ids",
+    "EnvName" : "env_name",
+    "NodeImageId" : "ami-0923e4b35a30a5f53",
+    "NodeInstanceType" : "m5.large",
+    "NodeVolumeSize" : "30"
+  },
+  "Tags" : {
+    "environment" : "env_name"
+  }
+}

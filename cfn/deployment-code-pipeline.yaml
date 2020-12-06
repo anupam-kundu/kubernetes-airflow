@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CodePipeline for kubernetes airflow infrastructure
+Parameters:
+  ProjectName:
+    Description: Name of the Project
+    Type: String
+
+Resources:
+
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: codepipeline-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - codepipeline:*
+                  - cloudformation:*
+                  - codebuild:*
+                  - iam:*
+                  - codecommit:*
+                  - s3:*
+                  - ecr:*
+                  - logs:*
+                  - eks:*
+                  - sqs:*
+                Resource: 
+                  - '*'
+
+  EKSAdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          -
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt [PipelineRole,Arn]
+            Action:
+              - sts:AssumeRole
+          -
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: eks-admin-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - iam:*
+                  - s3:*
+                  - ecr:*
+                  - logs:*
+                  - ec2:*
+                  - cloudformation:*
+                  - elasticloadbalancing:*
+                  - autoscaling:*
+                  - eks:*
+                  - sqs:*
+                Resource: 
+                  - '*'
+
+  ServiceDeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ProjectName}-ServiceDeploy
+      Description: !Sub ${ProjectName}-ServiceDeploy
+      ServiceRole: !GetAtt [PipelineRole,Arn]
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: linuxContainer
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/docker:18.09.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: conf/service-deploy.yml
+      TimeoutInMinutes: 20
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-ServiceDeploy
+  
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt [PipelineRole,Arn]
+      Name: !Ref AWS::StackName
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: !Sub ${ProjectName}-source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: shn-flow-logs
+                BranchName: pullBasedModel
+              OutputArtifacts:
+                - Name: SCCheckoutArtifact
+              RunOrder: 1
+        - Name: Infastructure-Deploymnet
+          Actions:
+            - Name: changeset
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: !Sub ${ProjectName}-cs
+                ActionMode: CHANGE_SET_REPLACE
+                StackName: !Sub ${ProjectName}-infrastructure
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplatePath: SCCheckoutArtifact::cfn/eks-infrastructure.yaml
+                TemplateConfiguration: SCCheckoutArtifact::env/infrastructure-configuration.json
+                RoleArn: !GetAtt [EKSAdminRole,Arn]
+              InputArtifacts:
+                - Name: SCCheckoutArtifact
+              RunOrder: 1
+              RoleArn: !GetAtt [EKSAdminRole,Arn]
+            - Name: deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: !Sub ${ProjectName}-cs
+                ActionMode: CHANGE_SET_EXECUTE
+                StackName: !Sub ${ProjectName}-infrastructure
+                RoleArn: !GetAtt [EKSAdminRole,Arn]
+              InputArtifacts:
+                - Name: SCCheckoutArtifact
+              RunOrder: 2
+              RoleArn: !GetAtt [EKSAdminRole,Arn]
+        - Name: Service-Deployment
+          Actions:
+            - Name: deploy
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref ServiceDeployProject
+              RunOrder: 1
+              InputArtifacts:
+                - Name: SCCheckoutArtifact              
+      ArtifactStore:
+        Type: S3
+        Location: !Sub ${AWS::Region}-${AWS::AccountId}-pipeline-artifacts
+          
+Outputs:
+  EKSAdminRoleArn:
+    Description: EKSAdmin Role Arn
+    Value: !GetAtt [EKSAdminRole,Arn]
+    

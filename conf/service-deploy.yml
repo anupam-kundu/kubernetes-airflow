@@ -1,0 +1,56 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo "Installation Started ! ..."
+      - curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.12.7/2019-03-27/bin/linux/amd64/aws-iam-authenticator
+      - chmod +x ./aws-iam-authenticator
+      - mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$HOME/bin:$PATH
+      - echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+      - curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.11.9/2019-03-27/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+      - echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+      - PROPERTY_FILE_NAME=conf/pipeline-configuration.properties
+      - export CodePipelineStack="kube-airflow-code-pipeline"
+      - export ProjectName="kube-airflow"
+      - export applications="mysql,rabbitmq,airflow"
+      - echo "Installation  Completed ! ..."
+  pre_build:
+    commands:
+      - echo "Pre Build Started ! ..."
+      - EKSAdminRoleArn=$( aws cloudformation describe-stacks --stack-name $CodePipelineStack --query 'Stacks[0].Outputs[?OutputKey==`EKSAdminRoleArn`].OutputValue' --output text )
+      - echo $EKSAdminRoleArn
+      - EKSClusterName=$( aws cloudformation describe-stacks --stack-name $ProjectName-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`EKSClusterName`].OutputValue' --output text )
+      - echo $EKSClusterName
+      - NodeInstanceRole=$( aws cloudformation describe-stacks --stack-name $ProjectName-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`NodeInstanceRole`].OutputValue' --output text )
+      - echo $NodeInstanceRole
+      - sed -e "s@NODE_INSTANCE_ROLE@$NodeInstanceRole@" kubernetes/aws-auth-cm.yaml > aws-auth-cm-final.yaml
+      - cat aws-auth-cm-final.yaml
+      - aws eks update-kubeconfig --name $EKSClusterName --role-arn $EKSAdminRoleArn
+      - aws eks describe-cluster --name $EKSClusterName
+      - kubectl apply -f aws-auth-cm-final.yaml
+      - sleep 10
+      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
+      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/heapster.yaml
+      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/influxdb/influxdb.yaml
+      - kubectl apply -f https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml
+      - kubectl apply -f kubernetes/eks-admin-service-account.yaml
+      - sleep 5
+      - echo "Pre Build  Completed ! ..."
+  build:
+    commands:
+      - echo "Build Started ! ..."
+#      - kubectl apply -f kubernetes/daemonset.yml
+      - |
+         for app in $(echo $applications | sed 's/,/ /g')
+         do
+            echo "$app"
+            kubectl create namespace $app
+            sh application/$app/install.sh $app
+         done
+      - echo "Build Completed ! ..."
+  post_build:
+    commands:
+      - echo "Post Build Started ! ..."
+      - echo "Post Build Completed ! ..."

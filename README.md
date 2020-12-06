@@ -14,6 +14,7 @@ applications
 
 cloudformation infra template 
 cfn/eks-infrastructure.yaml
+cfn/deployment-code-pipeline.yaml
 
 kubernetes help commands
 kubernetes/command.md
